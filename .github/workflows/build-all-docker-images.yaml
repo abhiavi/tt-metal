@@ -405,6 +405,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push LLK images
         shell: bash
+        env:
+          # Harbor pull-through for docker.io/library/ubuntu (same host-prefix pattern as harbor.ci.tenstorrent.net/ghcr.io/...).
+          LLK_UBUNTU_BASE_IMAGE: harbor.ci.tenstorrent.net/docker.io/library/ubuntu:22.04
         run: .github/scripts/llk-build-docker-images.sh
 
   # Update latest tags on main

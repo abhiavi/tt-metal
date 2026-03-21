@@ -10,9 +10,12 @@
 
 set -euo pipefail
 
-# Match dockerfile/Dockerfile: mirror.gcr.io/ubuntu (not docker.io/library/ubuntu).
-# Applied by patching a temp Dockerfile at build time so tt_llk can stay vanilla (no submodule edits).
-LLK_UBUNTU_BASE_IMAGE="${LLK_UBUNTU_BASE_IMAGE:-mirror.gcr.io/ubuntu:22.04}"
+# Base for Dockerfile.base (patches FROM ubuntu:22.04 in a temp file; tt_llk submodule stays vanilla).
+# Default matches upstream tt_llk. GitHub workflows set Harbor pull-through (same prefix pattern as
+# harbor.ci.tenstorrent.net/ghcr.io/...). Override if pulls time out or your Harbor proxy path differs:
+#   LLK_UBUNTU_BASE_IMAGE=harbor.ci.tenstorrent.net/docker.io/library/ubuntu:22.04
+#   LLK_UBUNTU_BASE_IMAGE=mirror.gcr.io/ubuntu:22.04
+LLK_UBUNTU_BASE_IMAGE="${LLK_UBUNTU_BASE_IMAGE:-ubuntu:22.04}"
 
 # LLK Docker images are built from the submodule content
 LLK_PATH="tt_metal/third_party/tt_llk"
@@ -23,7 +26,11 @@ fi
 
 LLK_BASE_DOCKERFILE_PATCHED=$(mktemp)
 trap 'rm -f "${LLK_BASE_DOCKERFILE_PATCHED}"' EXIT
-sed "s|^FROM ubuntu:22.04|FROM ${LLK_UBUNTU_BASE_IMAGE}|" "$LLK_PATH/.github/Dockerfile.base" >"$LLK_BASE_DOCKERFILE_PATCHED"
+awk -v img="$LLK_UBUNTU_BASE_IMAGE" '
+  $0 == "FROM ubuntu:22.04" { print "FROM " img; next }
+  { print }
+' "$LLK_PATH/.github/Dockerfile.base" >"$LLK_BASE_DOCKERFILE_PATCHED"
+echo "LLK Dockerfile.base rootfs: ${LLK_UBUNTU_BASE_IMAGE}"
 
 REPO="${GITHUB_REPOSITORY:-tenstorrent/tt-metal}"
 BASE_IMAGE_NAME=ghcr.io/$REPO/tt-llk-base-ubuntu-22-04
