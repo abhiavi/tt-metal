@@ -82,10 +82,10 @@ build_and_push() {
 }
 
 # Build base image from LLK submodule
-build_and_push $BASE_IMAGE_NAME $LLK_PATH/.github/Dockerfile.base $ON_MAIN
+build_and_push $BASE_IMAGE_NAME $LLK_PATH/.github/Dockerfile.base $ON_MAIN ""
 
 # Build CI image from LLK submodule
-build_and_push $CI_IMAGE_NAME $LLK_PATH/.github/Dockerfile.ci $ON_MAIN
+build_and_push $CI_IMAGE_NAME $LLK_PATH/.github/Dockerfile.ci $ON_MAIN $BASE_IMAGE_NAME:$DOCKER_TAG
 
 echo "All LLK images built and pushed successfully"
 echo "CI_IMAGE_NAME:"
