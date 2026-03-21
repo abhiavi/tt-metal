@@ -10,12 +10,20 @@
 
 set -euo pipefail
 
+# Match dockerfile/Dockerfile: mirror.gcr.io/ubuntu (not docker.io/library/ubuntu).
+# Applied by patching a temp Dockerfile at build time so tt_llk can stay vanilla (no submodule edits).
+LLK_UBUNTU_BASE_IMAGE="${LLK_UBUNTU_BASE_IMAGE:-mirror.gcr.io/ubuntu:22.04}"
+
 # LLK Docker images are built from the submodule content
 LLK_PATH="tt_metal/third_party/tt_llk"
 if [[ ! -d "$LLK_PATH" || ! -f "$LLK_PATH/.github/scripts/get-docker-tag.sh" ]]; then
   echo "::error::tt_llk submodule is missing or not checked out (expected $LLK_PATH with .github/scripts/get-docker-tag.sh)." >&2
   exit 1
 fi
+
+LLK_BASE_DOCKERFILE_PATCHED=$(mktemp)
+trap 'rm -f "${LLK_BASE_DOCKERFILE_PATCHED}"' EXIT
+sed "s|^FROM ubuntu:22.04|FROM ${LLK_UBUNTU_BASE_IMAGE}|" "$LLK_PATH/.github/Dockerfile.base" >"$LLK_BASE_DOCKERFILE_PATCHED"
 
 REPO="${GITHUB_REPOSITORY:-tenstorrent/tt-metal}"
 BASE_IMAGE_NAME=ghcr.io/$REPO/tt-llk-base-ubuntu-22-04
@@ -42,7 +50,7 @@ build_and_push() {
     local image_name=$1
     local dockerfile=$2
     local on_main=$3
-    local from_image=$4
+    local from_image="${4-}"
 
     if docker manifest inspect $image_name:$DOCKER_TAG > /dev/null 2>&1; then
         echo "Image $image_name:$DOCKER_TAG already exists"
@@ -81,11 +89,11 @@ build_and_push() {
         $LLK_PATH
 }
 
-# Build base image from LLK submodule
-build_and_push $BASE_IMAGE_NAME $LLK_PATH/.github/Dockerfile.base $ON_MAIN ""
+# Build base image (patched Dockerfile: see LLK_UBUNTU_BASE_IMAGE above)
+build_and_push "$BASE_IMAGE_NAME" "$LLK_BASE_DOCKERFILE_PATCHED" "$ON_MAIN"
 
 # Build CI image from LLK submodule
-build_and_push $CI_IMAGE_NAME $LLK_PATH/.github/Dockerfile.ci $ON_MAIN $BASE_IMAGE_NAME:$DOCKER_TAG
+build_and_push "$CI_IMAGE_NAME" "$LLK_PATH/.github/Dockerfile.ci" "$ON_MAIN"
 
 echo "All LLK images built and pushed successfully"
 echo "CI_IMAGE_NAME:"
