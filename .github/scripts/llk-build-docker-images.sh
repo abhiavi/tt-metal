@@ -48,10 +48,6 @@ fi
 
 export DOCKER_BUILDKIT=1
 
-# Ensure a buildx builder exists and is active
-docker buildx create --use --name tt-builder >/dev/null 2>&1 || docker buildx use tt-builder
-docker buildx inspect --bootstrap >/dev/null
-
 build_and_push() {
     local image_name=$1
     local dockerfile=$2
