@@ -26,8 +26,8 @@ DOCKER_TAG=$(cd "$LLK_PATH" && ./.github/scripts/get-docker-tag.sh)
 echo "Docker tag: $DOCKER_TAG"
 
 # Are we on main branch - use GITHUB_REF_NAME if available (GitHub Actions), otherwise fall back to git
-if [ -n "$GITHUB_REF_NAME" ]; then
-    ON_MAIN=$([ "$GITHUB_REF_NAME" = "main" ] && echo "true" || echo "false")
+if [ -n "${GITHUB_REF_NAME-}" ]; then
+    ON_MAIN=$([ "${GITHUB_REF_NAME}" = "main" ] && echo "true" || echo "false")
 else
     ON_MAIN=$(git branch --show-current 2>/dev/null | grep -q main && echo "true" || echo "false")
 fi
@@ -84,14 +84,14 @@ build_and_push() {
 # Build base image from LLK submodule
 build_and_push $BASE_IMAGE_NAME $LLK_PATH/.github/Dockerfile.base $ON_MAIN
 
-# Build CI image from LLK submodule (depends on base)
-build_and_push $CI_IMAGE_NAME $LLK_PATH/.github/Dockerfile.ci $ON_MAIN base
+# Build CI image from LLK submodule
+build_and_push $CI_IMAGE_NAME $LLK_PATH/.github/Dockerfile.ci $ON_MAIN
 
 echo "All LLK images built and pushed successfully"
 echo "CI_IMAGE_NAME:"
 echo "$CI_IMAGE_NAME:$DOCKER_TAG"
 
 # Output for GitHub Actions (if running in GHA)
-if [ -n "$GITHUB_OUTPUT" ]; then
+if [ -n "${GITHUB_OUTPUT-}" ]; then
     echo "docker-image=$CI_IMAGE_NAME:$DOCKER_TAG" >> "$GITHUB_OUTPUT"
 fi
